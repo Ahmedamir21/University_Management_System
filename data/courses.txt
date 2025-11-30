@@ -1,0 +1,9 @@
+# Course Data File
+# Format: Course_Code,Course_Name,Credits,Instructor
+# Each line represents one course
+
+CSAI101,Introduction to Programming,3,Dr. Ahmed Hassan
+MATH101,Calculus I,4,Dr. Sarah Mohamed
+PHYS101,Physics for Engineers,3,Dr. Omar Ali
+CHEM101,General Chemistry,3,Dr. Laila Ibrahim
+ENGL101,Academic Writing,2,Dr. Mona Saad

@@ -1,0 +1,9 @@
+# Student Data File
+# Format: Student_ID,Name,Program,Year,Password
+# Each line represents one student
+
+202507440,Ahmed Amir Ibrahim,CS,2025,pass123
+202506915,Ahmed Hisham Saad,CS,2025,pass456
+202507258,Reda Mahmoud Ali,CS,2025,pass789
+202501234,Mohamed Ali Hassan,CS,2025,pass111
+202502345,Sara Ahmed Mohamed,CS,2025,pass222

@@ -1,1 +1,170 @@
-# Main Program - Team Project\n# Team: Ahmed Amir, Ahmed Hisham, Reda Mahmoud\n# This is the main file that runs the whole program\n\n# Import all our modules\nimport file_operations\nimport calculations\nimport interface\n\n# Main function to run the program\ndef main():\n    print("Starting University Registration System...")\n    \n    # Initialize files (create if not exist)\n    file_operations.initialize_files()\n    \n    # Load all data from files\n    students = file_operations.read_students()\n    courses = file_operations.read_courses()\n    registrations = file_operations.read_registrations()\n    \n    # Main loop (keep running until user exits)\n    running = True\n    while running:\n        interface.display_main_menu()\n        choice = input("Enter your choice: ")\n        \n        if choice == "1":\n            # Admin login\n            username = input("Username: ")\n            password = input("Password: ")\n            result = interface.check_login(username, password, students)\n            \n            if result == "admin":\n                print("Login successful! Welcome Admin.")\n                admin_menu(students, courses, registrations)\n            else:\n                print("Login failed. Wrong username or password.")\n        \n        elif choice == "2":\n            # Student login\n            username = input("Student ID: ")\n            password = input("Password: ")\n            result = interface.check_login(username, password, students)\n            \n            if result != None and result != "admin":\n                print("Login successful! Welcome " + result['name'])\n                student_menu(result, students, courses, registrations)\n            else:\n                print("Login failed. Wrong ID or password.")\n        \n        elif choice == "0":\n            print("Thank you for using the system. Goodbye!")\n            running = False\n        \n        else:\n            print("Invalid choice. Please try again.")\n\n# Admin menu function\ndef admin_menu(students, courses, registrations):\n    admin_running = True\n    while admin_running:\n        interface.display_admin_menu()\n        choice = input("Enter your choice: ")\n        \n        if choice == "1":\n            # View all students\n            interface.display_students(students)\n        \n        elif choice == "2":\n            # View all courses\n            interface.display_courses(courses)\n        \n        elif choice == "3":\n            # Search student\n            search_id = input("Enter student ID to search: ")\n            student = interface.search_student_by_id(students, search_id)\n            if student:\n                print("Found: " + student['name'])\n            else:\n                print("Student not found.")\n        \n        elif choice == "4":\n            # Search course\n            search_code = input("Enter course code: ")\n            course = interface.search_course_by_code(courses, search_code)\n            if course:\n                print("Found: " + course['name'])\n            else:\n                print("Course not found.")\n        \n        elif choice == "5":\n            # View statistics\n            stats = calculations.get_course_statistics(students, courses, registrations)\n            print("\\n=== STATISTICS ===")\n            print("Total Students: " + str(stats['total_students']))\n            print("Total Courses: " + str(stats['total_courses']))\n            print("Total Registrations: " + str(stats['total_registrations']))\n        \n        elif choice == "0":\n            admin_running = False\n        \n        else:\n            print("Invalid choice.")\n\n# Student menu function\ndef student_menu(student, students, courses, registrations):\n    student_running = True\n    while student_running:\n        interface.display_student_menu(student['name'])\n        choice = input("Enter your choice: ")\n        \n        if choice == "1":\n            # View my courses\n            print("\\nYour registered courses:")\n            for reg in registrations:\n                if reg['student_id'] == student['id']:\n                    course = interface.search_course_by_code(courses, reg['course_code'])\n                    if course:\n                        print("- " + course['name'])\n        \n        elif choice == "2":\n            # Register new course\n            interface.display_courses(courses)\n            course_code = input("Enter course code to register: ")\n            \n            # Check if course exists\n            course = interface.search_course_by_code(courses, course_code)\n            if not course:\n                print("Course not found.")\n            else:\n                # Check if already registered\n                is_duplicate = calculations.check_duplicate_registration(student['id'], course_code, registrations)\n                if is_duplicate:\n                    print("You are already registered in this course.")\n                else:\n                    # Check credit limit\n                    current_credits = calculations.calculate_total_credits(student['id'], registrations, courses)\n                    can_register, message = calculations.check_credit_limit(current_credits, course['credits'])\n                    print(message)\n                    if can_register:\n                        # Add registration\n                        new_reg = {'student_id': student['id'], 'course_code': course_code}\n                        registrations.append(new_reg)\n                        file_operations.write_registrations(registrations)\n                        print("Successfully registered!")\n        \n        elif choice == "3":\n            # Drop course\n            course_code = input("Enter course code to drop: ")\n            found = False\n            for reg in registrations:\n                if reg['student_id'] == student['id'] and reg['course_code'] == course_code:\n                    registrations.remove(reg)\n                    file_operations.write_registrations(registrations)\n                    print("Course dropped successfully.")\n                    found = True\n                    break\n            if not found:\n                print("You are not registered in this course.")\n        \n        elif choice == "0":\n            student_running = False\n        \n        else:\n            print("Invalid choice.")\n\n# Run the program\nif __name__ == "__main__":\n    main()
+"""
+Main Program - Team Project
+Team: Ahmed Amir, Ahmed Hisham, Reda Mahmoud
+This is the main file that runs the whole program
+"""
+
+import file_operations
+import calculations
+import interface
+
+def main():
+    """Main function to run the program"""
+    print("Starting University Registration System...")
+    
+    file_operations.initialize_files()
+    
+    students = file_operations.read_students()
+    courses = file_operations.read_courses()
+    registrations = file_operations.read_registrations()
+    
+    running = True
+    while running:
+        interface.display_main_menu()
+        choice = input("Enter your choice: ")
+        
+        if choice == "1":
+            username = input("Username: ")
+            password = input("Password: ")
+            result = interface.check_login(username, password, students)
+            
+            if result == "admin":
+                print("Login successful! Welcome Admin.")
+                admin_menu(students, courses, registrations)
+            else:
+                print("Login failed. Wrong username or password.")
+        
+        elif choice == "2":
+            username = input("Student ID: ")
+            password = input("Password: ")
+            result = interface.check_login(username, password, students)
+            
+            if result != None and result != "admin":
+                print("Login successful! Welcome " + result['name'])
+                student_menu(result, students, courses, registrations)
+            else:
+                print("Login failed. Wrong ID or password.")
+        
+        elif choice == "0":
+            print("Thank you for using the system. Goodbye!")
+            running = False
+        
+        else:
+            print("Invalid choice. Please try again.")
+
+
+def admin_menu(students, courses, registrations):
+    """Admin menu function"""
+    admin_running = True
+    while admin_running:
+        interface.display_admin_menu()
+        choice = input("Enter your choice: ")
+        
+        if choice == "1":
+            interface.display_students(students)
+        
+        elif choice == "2":
+            interface.display_courses(courses)
+        
+        elif choice == "3":
+            search_id = input("Enter student ID to search: ")
+            student = interface.search_student_by_id(students, search_id)
+            if student:
+                print("Found: " + student['name'])
+            else:
+                print("Student not found.")
+        
+        elif choice == "4":
+            search_code = input("Enter course code: ")
+            course = interface.search_course_by_code(courses, search_code)
+            if course:
+                print("Found: " + course['name'])
+            else:
+                print("Course not found.")
+        
+        elif choice == "5":
+            stats = calculations.get_course_statistics(students, courses, registrations)
+            print("\n=== STATISTICS ===")
+            print("Total Students: " + str(stats['total_students']))
+            print("Total Courses: " + str(stats['total_courses']))
+            print("Total Registrations: " + str(stats['total_registrations']))
+        
+        elif choice == "0":
+            admin_running = False
+        
+        else:
+            print("Invalid choice.")
+
+
+def student_menu(student, students, courses, registrations):
+    """Student menu function"""
+    student_running = True
+    while student_running:
+        interface.display_student_menu(student['name'])
+        choice = input("Enter your choice: ")
+        
+        if choice == "1":
+            print("\nYour registered courses:")
+            for reg in registrations:
+                if reg['student_id'] == student['id']:
+                    course = interface.search_course_by_code(courses, reg['course_code'])
+                    if course:
+                        print("- " + course['name'])
+        
+        elif choice == "2":
+            interface.display_courses(courses)
+            course_code = input("Enter course code to register: ")
+            
+            course = interface.search_course_by_code(courses, course_code)
+            if not course:
+                print("Course not found.")
+            else:
+                is_duplicate = calculations.check_duplicate_registration(
+                    student['id'], 
+                    course_code, 
+                    registrations
+                )
+                if is_duplicate:
+                    print("You are already registered in this course.")
+                else:
+                    current_credits = calculations.calculate_total_credits(
+                        student['id'], 
+                        registrations, 
+                        courses
+                    )
+                    can_register, message = calculations.check_credit_limit(
+                        current_credits, 
+                        course['credits']
+                    )
+                    print(message)
+                    if can_register:
+                        new_reg = {
+                            'student_id': student['id'], 
+                            'course_code': course_code
+                        }
+                        registrations.append(new_reg)
+                        file_operations.write_registrations(registrations)
+                        print("Successfully registered!")
+        
+        elif choice == "3":
+            course_code = input("Enter course code to drop: ")
+            found = False
+            for reg in registrations:
+                if reg['student_id'] == student['id'] and reg['course_code'] == course_code:
+                    registrations.remove(reg)
+                    file_operations.write_registrations(registrations)
+                    print("Course dropped successfully.")
+                    found = True
+                    break
+            if not found:
+                print("You are not registered in this course.")
+        
+        elif choice == "0":
+            student_running = False
+        
+        else:
+            print("Invalid choice.")
+
+
+if __name__ == "__main__":
+    main()

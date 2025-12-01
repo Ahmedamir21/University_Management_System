@@ -1,1 +1,148 @@
-"""\nCalculations Module - Ahmed Hisham Saad (202506915)\nResponsible for calculations, validations, and statistics.\nUses concepts from Lectures 01-05: Arithmetic, if-else, Loops, Nested conditions\n"""\n\nimport file_operations\n\ndef calculate_total_credits(student_id, registrations, courses):\n    """Calculate total credit hours for a student"""\n    total = 0\n    for reg in registrations:\n        if reg['student_id'] == student_id:\n            for course in courses:\n                if course['code'] == reg['course_code']:\n                    total = total + course['credits']\n    return total\n\n\ndef check_credit_limit(current_credits, new_credits):\n    """Check if adding new course exceeds credit limits (12-18)"""\n    total = current_credits + new_credits\n    \n    if total > 18:\n        return (False, f"Cannot register. Total would be {total}, exceeding maximum 18 credits.")\n    elif total < 12:\n        return (True, f"Warning: Total will be {total} credits (below recommended 12).")\n    else:\n        return (True, f"Registration allowed. Total will be {total} credits.")\n\n\ndef check_duplicate_registration(student_id, course_code, registrations):\n    """Check if student already registered for this course"""\n    for reg in registrations:\n        if reg['student_id'] == student_id and reg['course_code'] == course_code:\n            return True\n    return False\n\n\ndef count_students_per_course(registrations, courses):\n    """Count how many students registered in each course"""\n    counts = {}\n    \n    # Initialize all courses with 0\n    for course in courses:\n        counts[course['code']] = 0\n    \n    # Count registrations\n    for reg in registrations:\n        course_code = reg['course_code']\n        if course_code in counts:\n            counts[course_code] = counts[course_code] + 1\n    \n    return counts\n\n\ndef get_course_statistics(students, courses, registrations):\n    """Get comprehensive statistics about the system"""\n    stats = {}\n    \n    # Basic counts\n    stats['total_students'] = len(students)\n    stats['total_courses'] = len(courses)\n    stats['total_registrations'] = len(registrations)\n    \n    # Average courses per student\n    if len(students) > 0:\n        stats['avg_courses'] = len(registrations) / len(students)\n    else:\n        stats['avg_courses'] = 0\n    \n    # Count students per course\n    course_counts = count_students_per_course(registrations, courses)\n    \n    # Find most and least popular\n    if course_counts:\n        max_count = 0\n        min_count = 9999\n        most_popular = ""\n        least_popular = ""\n        \n        for code in course_counts:\n            count = course_counts[code]\n            if count > max_count:\n                max_count = count\n                most_popular = code\n            if count < min_count:\n                min_count = count\n                least_popular = code\n        \n        stats['most_popular'] = most_popular\n        stats['most_popular_count'] = max_count\n        stats['least_popular'] = least_popular\n        stats['least_popular_count'] = min_count\n    \n    # Count full-time vs part-time students\n    fulltime = 0\n    parttime = 0\n    \n    for student in students:\n        credits = calculate_total_credits(student['id'], registrations, courses)\n        if credits >= 12:\n            fulltime = fulltime + 1\n        elif credits > 0:\n            parttime = parttime + 1\n    \n    stats['fulltime_students'] = fulltime\n    stats['parttime_students'] = parttime\n    \n    return stats\n\n\ndef check_schedule_conflict(student_id, new_course_code, registrations, courses):\n    """Check if new course conflicts with student's current schedule"""\n    # Find the new course details\n    new_course = None\n    for course in courses:\n        if course['code'] == new_course_code:\n            new_course = course\n            break\n    \n    if not new_course:\n        return (False, "Course not found")\n    \n    new_days = new_course['days']\n    new_time = new_course['time']\n    \n    # Check each registered course\n    for reg in registrations:\n        if reg['student_id'] == student_id:\n            for course in courses:\n                if course['code'] == reg['course_code']:\n                    # Check if days overlap\n                    if course['days'] == new_days:\n                        # Check if times overlap\n                        if course['time'] == new_time:\n                            return (True, f"Schedule conflict with {course['code']} on {course['days']} at {course['time']}")\n    \n    return (False, "No schedule conflict")\n\n\nif __name__ == "__main__":\n    # Test the functions\n    print("Testing calculations.py...")\n    file_operations.initialize_files()\n    \n    students = file_operations.read_students()\n    courses = file_operations.read_courses()\n    registrations = file_operations.read_registrations()\n    \n    # Test calculate_total_credits\n    if students:\n        student_id = students[0]['id']\n        credits = calculate_total_credits(student_id, registrations, courses)\n        print(f"\\nStudent {student_id} has {credits} credits")\n    \n    # Test statistics\n    stats = get_course_statistics(students, courses, registrations)\n    print(f"\\nStatistics:")\n    print(f"Total Students: {stats['total_students']}")\n    print(f"Total Courses: {stats['total_courses']}")\n    print(f"Total Registrations: {stats['total_registrations']}")
+"""
+Calculations Module - Ahmed Hisham Saad (202506915)
+Responsible for calculations, validations, and statistics.
+Uses concepts from Lectures 01-05: Arithmetic, if-else, Loops, Nested conditions
+"""
+
+import file_operations
+
+def calculate_total_credits(student_id, registrations, courses):
+    """Calculate total credit hours for a student"""
+    total = 0
+    for reg in registrations:
+        if reg['student_id'] == student_id:
+            for course in courses:
+                if course['code'] == reg['course_code']:
+                    total = total + course['credits']
+    return total
+
+
+def check_credit_limit(current_credits, new_credits):
+    """Check if adding new course exceeds credit limits (12-18)"""
+    total = current_credits + new_credits
+    
+    if total > 18:
+        return (False, f"Cannot register. Total would be {total}, exceeding maximum 18 credits.")
+    elif total < 12:
+        return (True, f"Warning: Total will be {total} credits (below recommended 12).")
+    else:
+        return (True, f"Registration allowed. Total will be {total} credits.")
+
+
+def check_duplicate_registration(student_id, course_code, registrations):
+    """Check if student already registered for this course"""
+    for reg in registrations:
+        if reg['student_id'] == student_id and reg['course_code'] == course_code:
+            return True
+    return False
+
+
+def count_students_per_course(registrations, courses):
+    """Count how many students registered in each course"""
+    counts = {}
+    
+    for course in courses:
+        counts[course['code']] = 0
+    
+    for reg in registrations:
+        course_code = reg['course_code']
+        if course_code in counts:
+            counts[course_code] = counts[course_code] + 1
+    
+    return counts
+
+
+def get_course_statistics(students, courses, registrations):
+    """Get comprehensive statistics about the system"""
+    stats = {}
+    
+    stats['total_students'] = len(students)
+    stats['total_courses'] = len(courses)
+    stats['total_registrations'] = len(registrations)
+    
+    if len(students) > 0:
+        stats['avg_courses'] = len(registrations) / len(students)
+    else:
+        stats['avg_courses'] = 0
+    
+    course_counts = count_students_per_course(registrations, courses)
+    
+    if course_counts:
+        max_count = 0
+        min_count = 9999
+        most_popular = ""
+        least_popular = ""
+        
+        for code in course_counts:
+            count = course_counts[code]
+            if count > max_count:
+                max_count = count
+                most_popular = code
+            if count < min_count:
+                min_count = count
+                least_popular = code
+        
+        stats['most_popular'] = most_popular
+        stats['most_popular_count'] = max_count
+        stats['least_popular'] = least_popular
+        stats['least_popular_count'] = min_count
+    
+    fulltime = 0
+    parttime = 0
+    
+    for student in students:
+        credits = calculate_total_credits(student['id'], registrations, courses)
+        if credits >= 12:
+            fulltime = fulltime + 1
+        elif credits > 0:
+            parttime = parttime + 1
+    
+    stats['fulltime_students'] = fulltime
+    stats['parttime_students'] = parttime
+    
+    return stats
+
+
+def check_schedule_conflict(student_id, new_course_code, registrations, courses):
+    """Check if new course conflicts with student's current schedule"""
+    new_course = None
+    for course in courses:
+        if course['code'] == new_course_code:
+            new_course = course
+            break
+    
+    if not new_course:
+        return (False, "Course not found")
+    
+    new_days = new_course['days']
+    new_time = new_course['time']
+    
+    for reg in registrations:
+        if reg['student_id'] == student_id:
+            for course in courses:
+                if course['code'] == reg['course_code']:
+                    if course['days'] == new_days:
+                        if course['time'] == new_time:
+                            return (True, f"Schedule conflict with {course['code']} on {course['days']} at {course['time']}")
+    
+    return (False, "No schedule conflict")
+
+
+if __name__ == "__main__":
+    print("Testing calculations.py...")
+    file_operations.initialize_files()
+    
+    students = file_operations.read_students()
+    courses = file_operations.read_courses()
+    registrations = file_operations.read_registrations()
+    
+    if students:
+        student_id = students[0]['id']
+        credits = calculate_total_credits(student_id, registrations, courses)
+        print(f"\nStudent {student_id} has {credits} credits")
+    
+    stats = get_course_statistics(students, courses, registrations)
+    print(f"\nStatistics:")
+    print(f"Total Students: {stats['total_students']}")
+    print(f"Total Courses: {stats['total_courses']}")
+    print(f"Total Registrations: {stats['total_registrations']}")

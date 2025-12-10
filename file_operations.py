@@ -16,6 +16,8 @@ def read_students():
             line = line.strip()
             if line:
                 parts = line.split(",")
+                                    if len(parts) < 5:  # Skip malformed lines
+                                                                continue
                 student = {
                     'id': parts[0],
                     'name': parts[1],

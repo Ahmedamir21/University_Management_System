@@ -39,8 +39,7 @@ def main():
             password = input("Password: ")
             result = interface.check_login(username, password, students)
             
-            if result != None and result != "admin":
-                print("Login successful! Welcome " + result['name'])
+        if result is not None and result != "admin":                print("Login successful! Welcome " + result['name'])
                 student_menu(result, students, courses, registrations)
             else:
                 print("Login failed. Wrong ID or password.")

@@ -38,8 +38,12 @@ def clear_content():
 # table with the given columns
 def make_table(columns):
     tree = ttk.Treeview(content_frame, columns=columns, show='headings')
+    # the Name column gets most of the width so long course names aren't cut
+    widths = {"Name": 350, "Code": 90, "ID": 110, "Time": 190, "Credits": 70, "Cred": 70,
+              "Cap": 70, "Year": 70, "Major": 90, "Status": 100}
     for col in columns:
         tree.heading(col, text=col)
+        tree.column(col, width=widths.get(col, 100), anchor="w", stretch=(col == "Name"))
     tree.pack(fill="both", expand=True)
     return tree
 
@@ -245,7 +249,7 @@ def show_admin_screen():
                 new_id = str(max(ids) + 1) if ids else "20250001"
                 students.append({'id': new_id, 'name': target['name'], 'prog': 'CS', 'year': '2025', 'pass': '123456'})
                 file_operations.write_students(students)
-                messagebox.showinfo("Done", f"Student ID: {new_id}")
+                messagebox.showinfo("Done", f"Student ID: {new_id}\nPassword: 123456")
 
             file_operations.write_applications(apps)
             review_apps()
@@ -257,7 +261,7 @@ def show_admin_screen():
         win = tk.Toplevel(root)
         win.title("Add Course")
         entries = {}
-        hints = {"Days": " (like Sun or Mon,Wed)", "Time": " (24-hour, like 14:00-16:00)"}
+        hints = {"Days": " (like Sun or Mon,Wed)", "Time": " (like 2:00 PM-4:00 PM)"}
         for field in ["Code", "Name", "Credits", "Days", "Time", "Capacity"]:
             tk.Label(win, text=field + hints.get(field, "")).pack()
             entries[field] = tk.Entry(win)

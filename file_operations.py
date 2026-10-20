@@ -10,6 +10,9 @@
 # the other files never open these directly, they use the read_/write_ functions below
 # which work with lists of dicts
 import os
+import re
+
+import calculations
 
 # ----- settings -----
 
@@ -22,7 +25,7 @@ COURSES_FILE = "courses.txt"
 REGISTRATIONS_FILE = "registrations.txt"
 APPLICATIONS_FILE = "applications.txt"
 NOTIFICATIONS_FILE = "notifications.txt"
-TIME_FORMAT_FILE = "time_format.txt"  # marker: course times in data/ are 24-hour
+TIME_FORMAT_FILE = "time_format.txt"  # marker: says how the times in courses.txt are stored
 
 
 # ----- core helpers -----
@@ -125,7 +128,8 @@ def write_applications(apps):
 # new applications start as Pending, ids start at 1001
 def submit_application(name, email, phone):
     apps = read_applications()
-    new_id = str(len(apps) + 1001)
+    ids = [int(a['id']) for a in apps if a['id'].isdigit()]
+    new_id = str(max(ids) + 1 if ids else 1001)
     apps.append({'id': new_id, 'name': name, 'email': email, 'phone': phone, 'status': 'Pending'})
     write_applications(apps)
     return new_id
@@ -136,31 +140,50 @@ def notify_applicant(app_id, msg):
         f.write(f"{app_id}{SEP}{msg}{SEP}New\n")
 
 
-# ----- old time format -----
+# ----- old time formats -----
 
-# the first version stored times without am/pm and read hours 1 to 7 as afternoon
-# ("2:00-4:00" meant 14:00-16:00). this turns one old time into 24-hour hh:mm-hh:mm
-def _old_time_to_24h(time_str):
-    fixed = []
-    for part in time_str.split("-"):
-        h, m = part.strip().split(":")
-        h = int(h)
-        if h < 8:
+# earlier versions of the project stored times in other ways:
+#   - the first one had no am/pm and read hours 1 to 7 as afternoon ("2:00-4:00" meant 2 PM to 4 PM)
+#   - the second one used 24-hour times ("14:00-16:00") and wrote "24h" in time_format.txt
+# this reads one stored time (like "2:00" or "14:00") and returns minutes after midnight
+def _part_to_minutes(part, is_24h):
+    m = re.fullmatch(r"(\d{1,2}):(\d{2})\s*([AaPp][Mm])?", part.strip())
+    if not m:
+        raise ValueError(part)
+    h, mins, suffix = int(m.group(1)), int(m.group(2)), m.group(3)
+    if mins > 59:
+        raise ValueError(part)
+    if suffix:
+        if not 1 <= h <= 12:
+            raise ValueError(part)
+        h = h % 12 + (12 if suffix.lower() == "pm" else 0)
+    else:
+        if not is_24h and h < 8:
             h += 12
-        fixed.append(f"{h:02d}:{m}")
-    return "-".join(fixed)
+        if h > 23:
+            raise ValueError(part)
+    return h * 60 + mins
 
 
-# data files made by the old version are converted once, then the marker file is written
+# data files made by an older version are converted once, then the marker file says "ampm"
 def _convert_old_times():
-    if os.path.exists(_path(TIME_FORMAT_FILE)) or not os.path.exists(_path(COURSES_FILE)):
+    if not os.path.exists(_path(COURSES_FILE)):
         return
+    marker = ""
+    if os.path.exists(_path(TIME_FORMAT_FILE)):
+        with open(_path(TIME_FORMAT_FILE), "r", encoding="utf-8") as f:
+            marker = f.read().strip()
+    if marker == "ampm":
+        return
+
     courses = read_courses()
     for c in courses:
         try:
-            c['time'] = _old_time_to_24h(c['time'])
+            start, end = [_part_to_minutes(p, marker == "24h") for p in c['time'].split("-")]
         except ValueError:
-            pass  # not in the old format, leave it
+            continue  # not in an old format, leave it
+        if start < end:  # an end before the start can't be converted, leave it
+            c['time'] = calculations.format_clock(start) + "-" + calculations.format_clock(end)
     write_courses(courses)
 
 
@@ -185,23 +208,23 @@ def initialize_files():
         # rows with the same code are one course (lecture + lab, Sec1 + Sec2),
         # registering the code registers all of them
         write_courses([
-            {'code': 'CSAI 100', 'name': 'Introduction to Computational Sciences and AI', 'cred': 1, 'days': 'Sun', 'time': '15:00-16:00', 'capacity': 50},
-            {'code': 'CSAI 101', 'name': 'Fundamentals of Programming and Computer Science', 'cred': 2, 'days': 'Wed', 'time': '12:00-14:00', 'capacity': 50},
-            {'code': 'CSAI 101', 'name': 'Fundamentals of Programming and Computer Science Lab', 'cred': 0, 'days': 'Thu', 'time': '08:00-10:00', 'capacity': 50},
-            {'code': 'CSAI 102', 'name': 'Digital Logic and Computer Architecture', 'cred': 3, 'days': 'Tue', 'time': '14:00-16:00', 'capacity': 50},
-            {'code': 'CSAI 102', 'name': 'Digital Logic and Computer Architecture Lab', 'cred': 0, 'days': 'Mon', 'time': '10:00-12:00', 'capacity': 50},
-            {'code': 'CSAI 252', 'name': 'Introduction to Computer Networks', 'cred': 3, 'days': 'Wed', 'time': '14:00-16:00', 'capacity': 50},
-            {'code': 'CSAI 252', 'name': 'Introduction to Computer Networks Lab', 'cred': 0, 'days': 'Mon', 'time': '12:00-14:00', 'capacity': 50},
-            {'code': 'ENGL 002', 'name': 'Remedial English Sec1', 'cred': 0, 'days': 'Sun', 'time': '13:00-15:00', 'capacity': 50},
-            {'code': 'ENGL 002', 'name': 'Remedial English Sec2', 'cred': 0, 'days': 'Thu', 'time': '10:00-12:00', 'capacity': 50},
-            {'code': 'ENGL 003', 'name': 'Remedial English Sec1', 'cred': 0, 'days': 'Sun', 'time': '13:00-15:00', 'capacity': 50},
-            {'code': 'ENGL 003', 'name': 'Remedial English Sec2', 'cred': 0, 'days': 'Thu', 'time': '10:00-12:00', 'capacity': 50},
-            {'code': 'ENGL 004', 'name': 'Remedial English Sec1', 'cred': 0, 'days': 'Sun', 'time': '13:00-15:00', 'capacity': 50},
-            {'code': 'ENGL 004', 'name': 'Remedial English Sec2', 'cred': 0, 'days': 'Thu', 'time': '10:00-12:00', 'capacity': 50},
-            {'code': 'MATH 103', 'name': 'Calculus for Computational Sciences', 'cred': 3, 'days': 'Sun', 'time': '08:00-10:00', 'capacity': 50},
-            {'code': 'MATH 103', 'name': 'Calculus for Computational Sciences Tut1', 'cred': 0, 'days': 'Tue', 'time': '12:00-14:00', 'capacity': 50},
-            {'code': 'MATH 103', 'name': 'Calculus for Computational Sciences Tut2', 'cred': 0, 'days': 'Wed', 'time': '10:00-12:00', 'capacity': 50},
-            {'code': 'SCH 163', 'name': 'Sustainability Social and Ethical Issues in Computing', 'cred': 2, 'days': 'Tue', 'time': '08:00-10:00', 'capacity': 50},
+            {'code': 'CSAI 100', 'name': 'Introduction to Computational Sciences and AI', 'cred': 1, 'days': 'Sun', 'time': '3:00 PM-4:00 PM', 'capacity': 50},
+            {'code': 'CSAI 101', 'name': 'Fundamentals of Programming and Computer Science', 'cred': 2, 'days': 'Wed', 'time': '12:00 PM-2:00 PM', 'capacity': 50},
+            {'code': 'CSAI 101', 'name': 'Fundamentals of Programming and Computer Science Lab', 'cred': 0, 'days': 'Thu', 'time': '8:00 AM-10:00 AM', 'capacity': 50},
+            {'code': 'CSAI 102', 'name': 'Digital Logic and Computer Architecture', 'cred': 3, 'days': 'Tue', 'time': '2:00 PM-4:00 PM', 'capacity': 50},
+            {'code': 'CSAI 102', 'name': 'Digital Logic and Computer Architecture Lab', 'cred': 0, 'days': 'Mon', 'time': '10:00 AM-12:00 PM', 'capacity': 50},
+            {'code': 'CSAI 252', 'name': 'Introduction to Computer Networks', 'cred': 3, 'days': 'Wed', 'time': '2:00 PM-4:00 PM', 'capacity': 50},
+            {'code': 'CSAI 252', 'name': 'Introduction to Computer Networks Lab', 'cred': 0, 'days': 'Mon', 'time': '12:00 PM-2:00 PM', 'capacity': 50},
+            {'code': 'ENGL 002', 'name': 'Remedial English Sec1', 'cred': 0, 'days': 'Sun', 'time': '1:00 PM-3:00 PM', 'capacity': 50},
+            {'code': 'ENGL 002', 'name': 'Remedial English Sec2', 'cred': 0, 'days': 'Thu', 'time': '10:00 AM-12:00 PM', 'capacity': 50},
+            {'code': 'ENGL 003', 'name': 'Remedial English Sec1', 'cred': 0, 'days': 'Sun', 'time': '1:00 PM-3:00 PM', 'capacity': 50},
+            {'code': 'ENGL 003', 'name': 'Remedial English Sec2', 'cred': 0, 'days': 'Thu', 'time': '10:00 AM-12:00 PM', 'capacity': 50},
+            {'code': 'ENGL 004', 'name': 'Remedial English Sec1', 'cred': 0, 'days': 'Sun', 'time': '1:00 PM-3:00 PM', 'capacity': 50},
+            {'code': 'ENGL 004', 'name': 'Remedial English Sec2', 'cred': 0, 'days': 'Thu', 'time': '10:00 AM-12:00 PM', 'capacity': 50},
+            {'code': 'MATH 103', 'name': 'Calculus for Computational Sciences', 'cred': 3, 'days': 'Sun', 'time': '8:00 AM-10:00 AM', 'capacity': 50},
+            {'code': 'MATH 103', 'name': 'Calculus for Computational Sciences Tut1', 'cred': 0, 'days': 'Tue', 'time': '12:00 PM-2:00 PM', 'capacity': 50},
+            {'code': 'MATH 103', 'name': 'Calculus for Computational Sciences Tut2', 'cred': 0, 'days': 'Wed', 'time': '10:00 AM-12:00 PM', 'capacity': 50},
+            {'code': 'SCH 163', 'name': 'Sustainability Social and Ethical Issues in Computing', 'cred': 2, 'days': 'Tue', 'time': '8:00 AM-10:00 AM', 'capacity': 50},
         ])
 
     if not os.path.exists(_path(REGISTRATIONS_FILE)):
@@ -215,6 +238,6 @@ def initialize_files():
         if not os.path.exists(_path(name)):
             open(_path(name), "w", encoding="utf-8").close()
 
-    # from here on the times in courses.txt are 24-hour
+    # from here on the times in courses.txt are like "2:00 PM-4:00 PM"
     with open(_path(TIME_FORMAT_FILE), "w", encoding="utf-8") as f:
-        f.write("24h\n")
+        f.write("ampm\n")

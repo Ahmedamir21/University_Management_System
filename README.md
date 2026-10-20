@@ -30,7 +30,7 @@ Demo logins: `admin` / `admin`, or a student like `202507440` / `pass123`.
 
 The `data/` folder with the text files is created automatically the first time the app runs, and it is in `.gitignore`. To reset the app to the starter data, close it and delete the `data/` folder.
 
-When adding a course, days are written like `Sun` or `Mon,Wed` and the time is 24-hour, like `14:00-16:00` (between 07:00 and 22:00). A data folder made by the first version used 12-hour times without AM/PM, and it is converted to 24-hour automatically the first time the app starts.
+When adding a course, days are written like `Sun` or `Mon,Wed` and the time like `2:00 PM-4:00 PM` (`2pm-4pm` also works). Classes have to be between 7:00 AM and 10:00 PM. A `data/` folder made by an older version (times without AM/PM) is converted automatically the first time the app starts.
 
 ## Project structure
 
@@ -53,7 +53,7 @@ Data is stored in plain text files (`students.txt`, `courses.txt`, `registration
 
 ## Things we ran into
 
-- Our first version stored times like `12:00-2:00` with no AM/PM, so it had to guess that hours 1 to 7 were afternoon. Now times are 24-hour (`12:00-14:00`), and they are converted to minutes before checking overlaps.
+- Our first version stored times like `12:00-2:00` with no AM/PM, so it had to guess that hours 1 to 7 were afternoon. Now every time has AM or PM (`12:00 PM-2:00 PM`), and it is converted to minutes before checking overlaps.
 - The GUI only calls functions from `calculations.py` and `file_operations.py`, so the logic stays separate from the windows.
 - Each of us worked on a separate file and `main.py` joins them together.
 

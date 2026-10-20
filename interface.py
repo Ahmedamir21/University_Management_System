@@ -128,6 +128,13 @@ def display_student_schedule(student_id):
 
 # bar chart of students per course
 def display_chart():
+    import matplotlib
+    # on a Mac the default backend clashes with Tkinter, and with PyQt installed it picks Qt
+    if matplotlib.get_backend().lower() not in ("agg", "tkagg"):
+        try:
+            matplotlib.use("TkAgg")
+        except Exception:
+            pass
     import matplotlib.pyplot as plt
     from matplotlib.ticker import MaxNLocator
     regs = file_operations.read_registrations()
@@ -157,7 +164,7 @@ def add_course():
     n = input("Name: ").strip()
     cr_text = input("Credits: ")
     d = calculations.clean_days(input("Days: "))
-    t = calculations.clean_time(input("Time (24-hour, like 14:00-16:00): "))
+    t = calculations.clean_time(input("Time (like 2:00 PM-4:00 PM): "))
     cap_text = input("Capacity: ")
 
     try:

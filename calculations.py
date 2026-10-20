@@ -5,8 +5,8 @@ import re
 
 DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
-# classes must fall between 07:00 and 22:00, this also catches
-# someone typing 12-hour times like 2:00-4:00 by mistake
+# classes must fall between 7:00 AM and 10:00 PM, this also catches
+# a wrong AM/PM (like 2:00 AM instead of 2:00 PM) when a course is added
 EARLIEST = 7 * 60
 LATEST = 22 * 60
 
@@ -60,13 +60,43 @@ def check_course_capacity(course_code, all_courses, all_registrations):
 
 # ----- schedule conflicts -----
 
-# hh:mm (24-hour time) -> minutes after midnight, 14:00 = 840
+# reads one time typed by a person and returns minutes after midnight, or None if it isn't valid
+# "2:00 PM", "2pm", "2:30 p.m." are fine, and 24-hour times only from 13:00 on ("14:00")
+# because "9:00" alone could be morning or evening
+def read_clock(text):
+    text = text.strip()
+    m = re.fullmatch(r"(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\.?", text, re.IGNORECASE)
+    if m:
+        h, mins = int(m.group(1)), int(m.group(2) or 0)
+        if not 1 <= h <= 12 or mins > 59:
+            return None
+        pm = m.group(3).lower() == "p"
+        return (h % 12 + (12 if pm else 0)) * 60 + mins
+    m = re.fullmatch(r"(\d{1,2}):(\d{2})", text)
+    if m and 13 <= int(m.group(1)) <= 23 and int(m.group(2)) <= 59:
+        return int(m.group(1)) * 60 + int(m.group(2))
+    return None
+
+
+# minutes after midnight -> "2:00 PM" (0 is 12:00 AM, 720 is 12:00 PM)
+def format_clock(minutes):
+    h, m = divmod(minutes, 60)
+    return f"{h % 12 or 12}:{m:02d} {'PM' if h >= 12 else 'AM'}"
+
+
+# "2:00 PM" -> 840, used on the times stored in courses.txt
+# a plain hh:mm like "14:00" is also accepted in case someone edited the file by hand
 def to_minutes(t):
-    h, m = map(int, t.split(':'))
-    return h * 60 + m
+    minutes = read_clock(t)
+    if minutes is None:
+        m = re.fullmatch(r"\s*(\d{1,2}):(\d{2})\s*", t)
+        if not m or int(m.group(1)) > 23 or int(m.group(2)) > 59:
+            raise ValueError(f"can't read the time {t!r}")
+        minutes = int(m.group(1)) * 60 + int(m.group(2))
+    return minutes
 
 
-# "12:00-2:00" -> (start, end) in minutes
+# "12:00 PM-2:00 PM" -> (start, end) in minutes
 def parse_time(time_str):
     start_str, end_str = time_str.split('-')
     return to_minutes(start_str), to_minutes(end_str)
@@ -82,12 +112,15 @@ def clean_days(days):
     return ",".join(d.strip().capitalize() for d in days.split(","))
 
 
-# "9:00 - 11:00" -> "09:00-11:00" (all times are stored as hh:mm-hh:mm)
+# "9am - 11am" -> "9:00 AM-11:00 AM" (this is the format stored in courses.txt)
+# anything that can't be read is returned as it is, and validate_course rejects it
 def clean_time(time_str):
-    time_str = time_str.replace(" ", "")
-    if re.fullmatch(r"\d{1,2}:\d{2}-\d{1,2}:\d{2}", time_str):
-        return "-".join(p.zfill(5) for p in time_str.split("-"))
-    return time_str
+    parts = re.split(r"\s*[-–—]\s*", time_str.strip())
+    if len(parts) == 2:
+        start, end = read_clock(parts[0]), read_clock(parts[1])
+        if start is not None and end is not None:
+            return format_clock(start) + "-" + format_clock(end)
+    return time_str.strip()
 
 
 # checks a course before the admin saves it, because a bad time or day
@@ -104,28 +137,28 @@ def validate_course(code, name, cred, days, time_str, capacity):
         if d not in DAYS:
             return False, "Days must look like Sun or Mon,Wed."
 
-    if not re.fullmatch(r"\d{1,2}:\d{2}-\d{1,2}:\d{2}", time_str):
-        return False, "Time must look like 14:00-16:00 (24-hour)."
-    for part in time_str.split("-"):
-        h, m = map(int, part.split(":"))
-        if h > 23 or m > 59:
-            return False, "Time is not valid."
+    # the time has to be what clean_time gives back, like "2:00 PM-4:00 PM"
+    if not re.fullmatch(r"\d{1,2}:\d{2} [AP]M-\d{1,2}:\d{2} [AP]M", time_str):
+        return False, "Time must look like 2:00 PM-4:00 PM (AM or PM on both sides)."
     start, end = parse_time(time_str)
     if start >= end:
-        return False, "End time must be after start time."
+        return False, "End time must be after start time (12:00 PM is noon, 12:00 AM is midnight)."
     if start < EARLIEST or end > LATEST:
-        return False, "Use 24-hour time between 07:00 and 22:00, like 14:00-16:00."
+        return False, "Classes must be between 7:00 AM and 10:00 PM. Check AM and PM."
 
     return True, "Valid course."
 
 
 # True if this meeting overlaps one the student already has
 def check_schedule_conflict(new_course, current_courses_details):
-    new_days = new_course['days'].split(',')
-    new_start, new_end = parse_time(new_course['time'])
+    new_days = [d.strip().capitalize() for d in new_course['days'].split(',')]
+    try:
+        new_start, new_end = parse_time(new_course['time'])
+    except ValueError:
+        return True, f"Can't read the time of {new_course['name']}, ask the admin to fix it."
 
     for course in current_courses_details:
-        course_days = course['days'].split(',')
+        course_days = [d.strip().capitalize() for d in course['days'].split(',')]
         common_days = [day for day in new_days if day in course_days]
         if common_days:
             try:

@@ -1,6 +1,6 @@
 # University Management System
 
-A desktop app written in Python (Tkinter) that handles university admissions and course registration. We built it as a team of three for CSCI 101 (Introduction to Computer Science), Fall 2025.
+A desktop app written in Python (Tkinter) that handles university admissions and course registration. We built it as a team of three for CSAI 101 (Introduction to Computer Science), Fall 2025.
 
 Before this, applications and registration were done by hand, which means mistakes like double-booked schedules or students going over the credit limit. The app does those checks automatically.
 

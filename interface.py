@@ -2,7 +2,7 @@
 # console menus, search/sort helpers and the matplotlib chart
 import file_operations
 import calculations
-import matplotlib.pyplot as plt
+# matplotlib is imported inside display_chart so the app still starts without it
 
 
 # ----- menus -----
@@ -128,6 +128,8 @@ def display_student_schedule(student_id):
 
 # bar chart of students per course
 def display_chart():
+    import matplotlib.pyplot as plt
+    from matplotlib.ticker import MaxNLocator
     regs = file_operations.read_registrations()
     counts = calculations.count_students_per_course(regs)
     if not counts:
@@ -141,6 +143,9 @@ def display_chart():
     plt.xlabel('Course Code')
     plt.ylabel('Students Count')
     plt.title('Enrollment Statistics')
+    plt.xticks(rotation=45, ha='right')  # codes like "CSAI 101" overlap when flat
+    plt.gca().yaxis.set_major_locator(MaxNLocator(integer=True))  # whole students only
+    plt.tight_layout()
     plt.show()
 
 
@@ -152,7 +157,7 @@ def add_course():
     n = input("Name: ").strip()
     cr_text = input("Credits: ")
     d = calculations.clean_days(input("Days: "))
-    t = input("Time: ").replace(" ", "")
+    t = calculations.clean_time(input("Time (24-hour, like 14:00-16:00): "))
     cap_text = input("Capacity: ")
 
     try:
@@ -193,4 +198,7 @@ def generate_enrollment_report():
     regs = file_operations.read_registrations()
     counts = calculations.count_students_per_course(regs)
     stats = calculations.get_course_statistics(counts)
+    if stats[0] is None:
+        print("No data")
+        return
     print(f"Max: {stats[0]} Min: {stats[2]}")

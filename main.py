@@ -63,7 +63,7 @@ def show_login_screen():
     entry_pass.grid(row=1, column=1, padx=5, pady=5)
 
     def perform_login():
-        u = entry_user.get()
+        u = entry_user.get().strip()
         p = entry_pass.get()
 
         if u == "admin" and p == "admin":
@@ -214,7 +214,10 @@ def show_admin_screen():
         if not file_operations.read_registrations():
             messagebox.showinfo("Chart", "No registrations yet.")
             return
-        interface.display_chart()
+        try:
+            interface.display_chart()
+        except ImportError:
+            messagebox.showerror("Chart", "matplotlib is not installed.\nRun: pip install matplotlib")
 
     # pending applications only
     def review_apps():
@@ -254,8 +257,9 @@ def show_admin_screen():
         win = tk.Toplevel(root)
         win.title("Add Course")
         entries = {}
+        hints = {"Days": " (like Sun or Mon,Wed)", "Time": " (24-hour, like 14:00-16:00)"}
         for field in ["Code", "Name", "Credits", "Days", "Time", "Capacity"]:
-            tk.Label(win, text=field).pack()
+            tk.Label(win, text=field + hints.get(field, "")).pack()
             entries[field] = tk.Entry(win)
             entries[field].pack()
 
@@ -264,7 +268,7 @@ def show_admin_screen():
             try:
                 course = {'code': calculations.clean_code(entries["Code"].get()), 'name': entries["Name"].get().strip(),
                           'cred': int(entries["Credits"].get()), 'days': calculations.clean_days(entries["Days"].get()),
-                          'time': entries["Time"].get().replace(" ", ""), 'capacity': int(entries["Capacity"].get())}
+                          'time': calculations.clean_time(entries["Time"].get()), 'capacity': int(entries["Capacity"].get())}
             except ValueError:
                 messagebox.showerror("Error", "Invalid Data")
                 return

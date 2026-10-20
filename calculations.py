@@ -5,6 +5,11 @@ import re
 
 DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
+# classes must fall between 07:00 and 22:00, this also catches
+# someone typing 12-hour times like 2:00-4:00 by mistake
+EARLIEST = 7 * 60
+LATEST = 22 * 60
+
 
 # ----- credits -----
 
@@ -55,12 +60,9 @@ def check_course_capacity(course_code, all_courses, all_registrations):
 
 # ----- schedule conflicts -----
 
-# h:mm -> minutes after midnight
-# no am/pm in the data, so 1 to 7 means afternoon (1:00 = 13:00)
+# hh:mm (24-hour time) -> minutes after midnight, 14:00 = 840
 def to_minutes(t):
     h, m = map(int, t.split(':'))
-    if h < 8:
-        h += 12
     return h * 60 + m
 
 
@@ -80,6 +82,14 @@ def clean_days(days):
     return ",".join(d.strip().capitalize() for d in days.split(","))
 
 
+# "9:00 - 11:00" -> "09:00-11:00" (all times are stored as hh:mm-hh:mm)
+def clean_time(time_str):
+    time_str = time_str.replace(" ", "")
+    if re.fullmatch(r"\d{1,2}:\d{2}-\d{1,2}:\d{2}", time_str):
+        return "-".join(p.zfill(5) for p in time_str.split("-"))
+    return time_str
+
+
 # checks a course before the admin saves it, because a bad time or day
 # would break the conflict check for every student later
 def validate_course(code, name, cred, days, time_str, capacity):
@@ -95,7 +105,7 @@ def validate_course(code, name, cred, days, time_str, capacity):
             return False, "Days must look like Sun or Mon,Wed."
 
     if not re.fullmatch(r"\d{1,2}:\d{2}-\d{1,2}:\d{2}", time_str):
-        return False, "Time must look like 10:00-12:00."
+        return False, "Time must look like 14:00-16:00 (24-hour)."
     for part in time_str.split("-"):
         h, m = map(int, part.split(":"))
         if h > 23 or m > 59:
@@ -103,6 +113,8 @@ def validate_course(code, name, cred, days, time_str, capacity):
     start, end = parse_time(time_str)
     if start >= end:
         return False, "End time must be after start time."
+    if start < EARLIEST or end > LATEST:
+        return False, "Use 24-hour time between 07:00 and 22:00, like 14:00-16:00."
 
     return True, "Valid course."
 
@@ -116,7 +128,10 @@ def check_schedule_conflict(new_course, current_courses_details):
         course_days = course['days'].split(',')
         common_days = [day for day in new_days if day in course_days]
         if common_days:
-            curr_start, curr_end = parse_time(course['time'])
+            try:
+                curr_start, curr_end = parse_time(course['time'])
+            except ValueError:
+                continue  # a broken time in the data file shouldn't crash registration
             if max(new_start, curr_start) < min(new_end, curr_end):
                 return True, f"Conflict with {course['name']}"
     return False, "No conflict."

@@ -22,6 +22,7 @@ COURSES_FILE = "courses.txt"
 REGISTRATIONS_FILE = "registrations.txt"
 APPLICATIONS_FILE = "applications.txt"
 NOTIFICATIONS_FILE = "notifications.txt"
+TIME_FORMAT_FILE = "time_format.txt"  # marker: course times in data/ are 24-hour
 
 
 # ----- core helpers -----
@@ -37,7 +38,7 @@ def _path(name):
 def _read(name, min_fields):
     rows = []
     if os.path.exists(_path(name)):
-        with open(_path(name), "r", encoding="utf-8") as f:
+        with open(_path(name), "r", encoding="utf-8-sig") as f:  # -sig: ignores the BOM Notepad can add
             for line in f:
                 fields = line.strip().split(SEP)
                 if len(fields) >= min_fields:
@@ -135,6 +136,34 @@ def notify_applicant(app_id, msg):
         f.write(f"{app_id}{SEP}{msg}{SEP}New\n")
 
 
+# ----- old time format -----
+
+# the first version stored times without am/pm and read hours 1 to 7 as afternoon
+# ("2:00-4:00" meant 14:00-16:00). this turns one old time into 24-hour hh:mm-hh:mm
+def _old_time_to_24h(time_str):
+    fixed = []
+    for part in time_str.split("-"):
+        h, m = part.strip().split(":")
+        h = int(h)
+        if h < 8:
+            h += 12
+        fixed.append(f"{h:02d}:{m}")
+    return "-".join(fixed)
+
+
+# data files made by the old version are converted once, then the marker file is written
+def _convert_old_times():
+    if os.path.exists(_path(TIME_FORMAT_FILE)) or not os.path.exists(_path(COURSES_FILE)):
+        return
+    courses = read_courses()
+    for c in courses:
+        try:
+            c['time'] = _old_time_to_24h(c['time'])
+        except ValueError:
+            pass  # not in the old format, leave it
+    write_courses(courses)
+
+
 # ----- first-run setup -----
 
 # create data/ and any missing file with starter data so
@@ -142,6 +171,8 @@ def notify_applicant(app_id, msg):
 #
 def initialize_files():
     os.makedirs(DATA_DIR, exist_ok=True)
+
+    _convert_old_times()
 
     if not os.path.exists(_path(STUDENTS_FILE)):
         write_students([
@@ -154,21 +185,21 @@ def initialize_files():
         # rows with the same code are one course (lecture + lab, Sec1 + Sec2),
         # registering the code registers all of them
         write_courses([
-            {'code': 'CSAI 100', 'name': 'Introduction to Computational Sciences and AI', 'cred': 1, 'days': 'Sun', 'time': '3:00-4:00', 'capacity': 50},
-            {'code': 'CSAI 101', 'name': 'Fundamentals of Programming and Computer Science', 'cred': 2, 'days': 'Wed', 'time': '12:00-2:00', 'capacity': 50},
+            {'code': 'CSAI 100', 'name': 'Introduction to Computational Sciences and AI', 'cred': 1, 'days': 'Sun', 'time': '15:00-16:00', 'capacity': 50},
+            {'code': 'CSAI 101', 'name': 'Fundamentals of Programming and Computer Science', 'cred': 2, 'days': 'Wed', 'time': '12:00-14:00', 'capacity': 50},
             {'code': 'CSAI 101', 'name': 'Fundamentals of Programming and Computer Science Lab', 'cred': 0, 'days': 'Thu', 'time': '08:00-10:00', 'capacity': 50},
-            {'code': 'CSAI 102', 'name': 'Digital Logic and Computer Architecture', 'cred': 3, 'days': 'Tue', 'time': '2:00-4:00', 'capacity': 50},
+            {'code': 'CSAI 102', 'name': 'Digital Logic and Computer Architecture', 'cred': 3, 'days': 'Tue', 'time': '14:00-16:00', 'capacity': 50},
             {'code': 'CSAI 102', 'name': 'Digital Logic and Computer Architecture Lab', 'cred': 0, 'days': 'Mon', 'time': '10:00-12:00', 'capacity': 50},
-            {'code': 'CSAI 252', 'name': 'Introduction to Computer Networks', 'cred': 3, 'days': 'Wed', 'time': '2:00-4:00', 'capacity': 50},
-            {'code': 'CSAI 252', 'name': 'Introduction to Computer Networks Lab', 'cred': 0, 'days': 'Mon', 'time': '12:00-2:00', 'capacity': 50},
-            {'code': 'ENGL 002', 'name': 'Remedial English Sec1', 'cred': 0, 'days': 'Sun', 'time': '1:00-3:00', 'capacity': 50},
+            {'code': 'CSAI 252', 'name': 'Introduction to Computer Networks', 'cred': 3, 'days': 'Wed', 'time': '14:00-16:00', 'capacity': 50},
+            {'code': 'CSAI 252', 'name': 'Introduction to Computer Networks Lab', 'cred': 0, 'days': 'Mon', 'time': '12:00-14:00', 'capacity': 50},
+            {'code': 'ENGL 002', 'name': 'Remedial English Sec1', 'cred': 0, 'days': 'Sun', 'time': '13:00-15:00', 'capacity': 50},
             {'code': 'ENGL 002', 'name': 'Remedial English Sec2', 'cred': 0, 'days': 'Thu', 'time': '10:00-12:00', 'capacity': 50},
-            {'code': 'ENGL 003', 'name': 'Remedial English Sec1', 'cred': 0, 'days': 'Sun', 'time': '1:00-3:00', 'capacity': 50},
+            {'code': 'ENGL 003', 'name': 'Remedial English Sec1', 'cred': 0, 'days': 'Sun', 'time': '13:00-15:00', 'capacity': 50},
             {'code': 'ENGL 003', 'name': 'Remedial English Sec2', 'cred': 0, 'days': 'Thu', 'time': '10:00-12:00', 'capacity': 50},
-            {'code': 'ENGL 004', 'name': 'Remedial English Sec1', 'cred': 0, 'days': 'Sun', 'time': '1:00-3:00', 'capacity': 50},
+            {'code': 'ENGL 004', 'name': 'Remedial English Sec1', 'cred': 0, 'days': 'Sun', 'time': '13:00-15:00', 'capacity': 50},
             {'code': 'ENGL 004', 'name': 'Remedial English Sec2', 'cred': 0, 'days': 'Thu', 'time': '10:00-12:00', 'capacity': 50},
             {'code': 'MATH 103', 'name': 'Calculus for Computational Sciences', 'cred': 3, 'days': 'Sun', 'time': '08:00-10:00', 'capacity': 50},
-            {'code': 'MATH 103', 'name': 'Calculus for Computational Sciences Tut1', 'cred': 0, 'days': 'Tue', 'time': '12:00-2:00', 'capacity': 50},
+            {'code': 'MATH 103', 'name': 'Calculus for Computational Sciences Tut1', 'cred': 0, 'days': 'Tue', 'time': '12:00-14:00', 'capacity': 50},
             {'code': 'MATH 103', 'name': 'Calculus for Computational Sciences Tut2', 'cred': 0, 'days': 'Wed', 'time': '10:00-12:00', 'capacity': 50},
             {'code': 'SCH 163', 'name': 'Sustainability Social and Ethical Issues in Computing', 'cred': 2, 'days': 'Tue', 'time': '08:00-10:00', 'capacity': 50},
         ])
@@ -183,3 +214,7 @@ def initialize_files():
     for name in (APPLICATIONS_FILE, NOTIFICATIONS_FILE):
         if not os.path.exists(_path(name)):
             open(_path(name), "w", encoding="utf-8").close()
+
+    # from here on the times in courses.txt are 24-hour
+    with open(_path(TIME_FORMAT_FILE), "w", encoding="utf-8") as f:
+        f.write("24h\n")

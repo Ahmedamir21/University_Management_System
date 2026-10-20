@@ -1,6 +1,9 @@
 # calculations.py
 # validation rules and the math behind them (credits, capacity, conflicts, stats)
 # nothing in here touches files or windows
+import re
+
+DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
 
 # ----- credits -----
@@ -65,6 +68,43 @@ def to_minutes(t):
 def parse_time(time_str):
     start_str, end_str = time_str.split('-')
     return to_minutes(start_str), to_minutes(end_str)
+
+
+# " csai  101 " -> "CSAI 101" so the code matches however it was typed
+def clean_code(code):
+    return " ".join(code.upper().split())
+
+
+# "sun, wed" -> "Sun,Wed" (the conflict check compares days as exact text)
+def clean_days(days):
+    return ",".join(d.strip().capitalize() for d in days.split(","))
+
+
+# checks a course before the admin saves it, because a bad time or day
+# would break the conflict check for every student later
+def validate_course(code, name, cred, days, time_str, capacity):
+    if not code or not name:
+        return False, "Code and name are required."
+    if cred < 0:
+        return False, "Credits can't be negative."
+    if capacity < 1:
+        return False, "Capacity must be at least 1."
+
+    for d in clean_days(days).split(","):
+        if d not in DAYS:
+            return False, "Days must look like Sun or Mon,Wed."
+
+    if not re.fullmatch(r"\d{1,2}:\d{2}-\d{1,2}:\d{2}", time_str):
+        return False, "Time must look like 10:00-12:00."
+    for part in time_str.split("-"):
+        h, m = map(int, part.split(":"))
+        if h > 23 or m > 59:
+            return False, "Time is not valid."
+    start, end = parse_time(time_str)
+    if start >= end:
+        return False, "End time must be after start time."
+
+    return True, "Valid course."
 
 
 # True if this meeting overlaps one the student already has

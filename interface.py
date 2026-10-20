@@ -148,12 +148,24 @@ def display_chart():
 
 # console version of add course
 def add_course():
-    c = input("Code: ")
-    n = input("Name: ")
-    cr = int(input("Credits: "))
-    d = input("Days: ")
-    t = input("Time: ")
-    cap = int(input("Capacity: "))
+    c = calculations.clean_code(input("Code: "))
+    n = input("Name: ").strip()
+    cr_text = input("Credits: ")
+    d = calculations.clean_days(input("Days: "))
+    t = input("Time: ").replace(" ", "")
+    cap_text = input("Capacity: ")
+
+    try:
+        cr = int(cr_text)
+        cap = int(cap_text)
+    except ValueError:
+        print("Invalid data")
+        return
+
+    ok, msg = calculations.validate_course(c, n, cr, d, t, cap)
+    if not ok:
+        print(msg)
+        return
 
     courses = file_operations.read_courses()
     courses.append({'code': c, 'name': n, 'cred': cr, 'days': d, 'time': t, 'capacity': cap})

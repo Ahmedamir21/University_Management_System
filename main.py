@@ -129,7 +129,7 @@ def show_student_screen():
 
         # validate, then save
         def confirm():
-            code = e.get()
+            code = calculations.clean_code(e.get())
             regs = file_operations.read_registrations()
             courses = file_operations.read_courses()
 
@@ -154,7 +154,7 @@ def show_student_screen():
         e.pack(pady=5)
 
         def confirm():
-            if file_operations.drop_course(current_user_id, e.get()):
+            if file_operations.drop_course(current_user_id, calculations.clean_code(e.get())):
                 messagebox.showinfo("Success", "Dropped")
                 win.destroy()
                 view_schedule()
@@ -211,6 +211,9 @@ def show_admin_screen():
             txt.insert("end", f"{k}: {v} Students\n")
 
     def open_chart():
+        if not file_operations.read_registrations():
+            messagebox.showinfo("Chart", "No registrations yet.")
+            return
         interface.display_chart()
 
     # pending applications only
@@ -259,11 +262,17 @@ def show_admin_screen():
         # a lab or section can reuse an existing code
         def save():
             try:
-                course = {'code': entries["Code"].get(), 'name': entries["Name"].get(),
-                          'cred': int(entries["Credits"].get()), 'days': entries["Days"].get(),
-                          'time': entries["Time"].get(), 'capacity': int(entries["Capacity"].get())}
+                course = {'code': calculations.clean_code(entries["Code"].get()), 'name': entries["Name"].get().strip(),
+                          'cred': int(entries["Credits"].get()), 'days': calculations.clean_days(entries["Days"].get()),
+                          'time': entries["Time"].get().replace(" ", ""), 'capacity': int(entries["Capacity"].get())}
             except ValueError:
                 messagebox.showerror("Error", "Invalid Data")
+                return
+
+            ok, msg = calculations.validate_course(course['code'], course['name'], course['cred'],
+                                                   course['days'], course['time'], course['capacity'])
+            if not ok:
+                messagebox.showerror("Error", msg)
                 return
 
             courses = file_operations.read_courses()
@@ -291,6 +300,7 @@ def show_admin_screen():
 def show_applicant_screen():
     clear_window()
     root.title("New Application")
+    root.geometry("400x400")  # the login window is 400x300, too short for the form
     tk.Label(root, text="New Application", font=("Arial", 16)).pack(pady=20)
 
     frame = tk.Frame(root)

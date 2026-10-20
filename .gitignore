@@ -1,0 +1,14 @@
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# data files are created when the app runs
+data/
+
+# editors and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

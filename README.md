@@ -39,9 +39,9 @@ When adding a course, days are written like `Sun` or `Mon,Wed` and the time like
 | `main.py` | The Tkinter windows. Start the app from here |
 | `calculations.py` | Rules and validation (credits, capacity, time conflicts, statistics) |
 | `file_operations.py` | Reads and writes the text files in `data/` |
-| `interface.py` | Search and sort helpers, report, and the Matplotlib chart |
+| `interface.py` | Console menus, search and sort helpers, the report, and the Matplotlib chart |
 
-Data is stored in plain text files (`students.txt`, `courses.txt`, `registrations.txt`, `applications.txt`), one record per line with fields separated by `|`.
+Data is stored in plain text files (`students.txt`, `courses.txt`, `registrations.txt`, `applications.txt`), one record per line with fields separated by `|`. The app also creates `notifications.txt` (not used yet) and `time_format.txt` (it remembers how course times are stored, so older files can be converted).
 
 ## Team
 
@@ -49,12 +49,12 @@ Data is stored in plain text files (`students.txt`, `courses.txt`, `registration
 | --- | --- |
 | Ahmed Amir Ibrahim | Data and files |
 | Ahmed Hisham Saad | Logic and validation |
-| Reda Mahmoud Ali | Interface (search, sort, report, chart) |
+| Reda Mahmoud Ali | `interface.py` (search, sort, report, chart) |
 
 ## Things we ran into
 
 - Course times are written with AM or PM (`12:00 PM-2:00 PM`), and we convert them to minutes before checking overlaps so a class at 2:00 PM is never mixed up with 2:00 AM.
-- The GUI only calls functions from `calculations.py` and `file_operations.py`, so the logic stays separate from the windows.
+- `main.py` only calls functions from the other files (and `interface.py` for the chart), so the logic stays separate from the windows.
 - Each of us worked on a separate file and `main.py` joins them together.
 
 ## Limitations and ideas
